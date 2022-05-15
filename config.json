@@ -327,6 +327,20 @@
                 "text-colors",
                 "background-colors"
             ]
+        },
+        {
+            "id": "medium-screen-size",
+            "description": "Medium Screen Size",
+            "method": "copyExistingRulesIntoMediaRule",
+            "mediaQuery": "@media (min-width: 768px)",
+            "selectorsBecome": ".md\\:{{ CLASS_NAME }}",
+            "affectedIds": [
+                "margin", 
+                "padding",
+                "text-colors",
+                "background-colors",
+                "hover"
+            ]
         }
     ]
 }

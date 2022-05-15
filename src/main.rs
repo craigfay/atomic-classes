@@ -1,5 +1,5 @@
 
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
 use std::collections::BTreeMap;
 use std::fs::File;
@@ -13,6 +13,17 @@ pub enum Instruction {
     SingleRuleFromVariableGroup(FromVariableGroup),
     ManyRulesFromVariableGroup(ManyRulesFromVariableGroup),
     AddClassModifier(AddClassModifier),
+    CopyExistingRulesIntoMediaRule(CopyExistingRulesIntoMediaRule),
+}
+
+#[derive(Deserialize, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct CopyExistingRulesIntoMediaRule {
+    id: String,
+    description: String,
+    affected_ids: Vec<String>,
+    media_query: String,
+    selectors_become: String,
 }
 
 #[derive(Deserialize, Debug)]
@@ -54,7 +65,7 @@ struct Config {
     instructions: Vec<Instruction>,
 }
 
-#[derive(Deserialize, Debug, Default, Clone)]
+#[derive(Deserialize, Serialize, Debug, Default, Clone)]
 struct CSSRule {
     selector: String,
     declarations: BTreeMap<String, String>,
@@ -163,6 +174,36 @@ fn add_class_modifier(
     new_rules
 }
 
+/// Copy existing rules into a media query block
+fn copy_existing_rules_into_media_rule(
+    inst: &CopyExistingRulesIntoMediaRule,
+    rules_by_id: &BTreeMap<String, Vec<CSSRule>>
+) -> Vec<CSSRule> {
+    let mut new_rules: Vec<CSSRule> = vec![];
+
+    for id in &inst.affected_ids {
+        let rules = rules_by_id.get(&id.clone())
+            .expect(&err_msg_for_missing_instruction(&inst.description, &id));
+
+        for rule in rules.iter() {
+            // Skipping rules that don't target classes
+            if !rule.selector.starts_with(".") { continue }
+
+            let mut selector = inst.selectors_become.clone();
+
+            let class_name = rule.selector.replacen(".", "", 1);
+            selector = selector.replace("{{ CLASS_NAME }}", &class_name);
+
+            new_rules.push(CSSRule {
+                selector,
+                ..rule.clone()
+            });
+        }
+    }
+
+    new_rules
+}
+
 fn generate_rules(config: Config) -> Vec<CSSRule> {
     let mut rules_by_id: BTreeMap<String, Vec<CSSRule>> = BTreeMap::new();
 
@@ -176,6 +217,9 @@ fn generate_rules(config: Config) -> Vec<CSSRule> {
             }
             Instruction::AddClassModifier(inst) => {
                 rules_by_id.insert(inst.id.clone(), add_class_modifier(&inst, &rules_by_id));
+            },
+            Instruction::CopyExistingRulesIntoMediaRule(inst) => {
+                rules_by_id.insert(inst.id.clone(), copy_existing_rules_into_media_rule(inst, &rules_by_id));
             }
         }
     }
@@ -213,6 +257,8 @@ fn main() {
     let reader = BufReader::new(file);
     let config: Config = serde_json::from_reader(reader).unwrap();
     let rules = generate_rules(config);
-    let css = stringify_rules(rules);
-    fs::write("./build.css", css).expect("Unable to write file")
+    let css = stringify_rules(rules.clone());
+    let intermediate = serde_json::to_string(&rules).unwrap();
+    fs::write("./build.css", css).expect("Unable to write file");
+    fs::write("./intermediate.json", intermediate).expect("Unable to write file");
 }
