@@ -333,7 +333,7 @@
             "description": "Medium Screen Size",
             "method": "copyExistingRulesIntoMediaRule",
             "mediaQuery": "@media (min-width: 768px)",
-            "selectorsBecome": ".md\\:{{ CLASS_NAME }}",
+            "selectorsBecome": ".md\\:{{ PREV_CLASS_NAME }}",
             "affectedIds": [
                 "margin", 
                 "padding",

@@ -186,13 +186,11 @@ fn copy_existing_rules_into_media_rule(
             .expect(&err_msg_for_missing_instruction(&inst.description, &id));
 
         for rule in rules.iter() {
-            // Skipping rules that don't target classes
-            if !rule.selector.starts_with(".") { continue }
-
             let mut selector = inst.selectors_become.clone();
 
-            let class_name = rule.selector.replacen(".", "", 1);
-            selector = selector.replace("{{ CLASS_NAME }}", &class_name);
+            let prev_class_name = rule.selector.replacen(".", "", 1);
+            selector = selector.replace("{{ PREV_CLASS_NAME }}", &prev_class_name);
+            selector = selector.replace("{{ PREV_SELECTOR }}", &rule.selector);
 
             new_rules.push(CSSRule {
                 selector,
