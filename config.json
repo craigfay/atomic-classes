@@ -1,5 +1,5 @@
 {
-    "variableGroups": {
+    "inputGroups": {
         "spacing": {
             "1": "0.25rem",
             "2": "0.5rem",
@@ -166,8 +166,8 @@
         {
             "id": "define-color-variables",
             "description": "Define Color Variables",
-            "method": "singleRuleFromVariableGroup",
-            "variableGroup": "colors",
+            "method": "singleRuleFromInputGroup",
+            "inputGroupName": "colors",
             "selector": ":root",
             "declarations": {
                 "--{{ KEY }}": "{{ VAL }}"
@@ -176,8 +176,8 @@
         {
             "id": "define-spacing-variables",
             "description": "Define Spacing Variables",
-            "method": "singleRuleFromVariableGroup",
-            "variableGroup": "spacing",
+            "method": "singleRuleFromInputGroup",
+            "inputGroupName": "spacing",
             "selector": ":root",
             "declarations": {
                 "--s{{ KEY }}": "{{ VAL }}"
@@ -186,8 +186,8 @@
         {
             "id": "text-colors",
             "description": "Text Colors",
-            "method": "manyRulesFromVariableGroup",
-            "variableGroup": "colors",
+            "method": "manyRulesFromInputGroup",
+            "inputGroupName": "colors",
             "rules": [
                 {
                     "selector": ".text-{{ KEY }}",
@@ -200,8 +200,8 @@
         {
             "id": "background-colors",
             "description": "Background Colors",
-            "method": "manyRulesFromVariableGroup",
-            "variableGroup": "colors",
+            "method": "manyRulesFromInputGroup",
+            "inputGroupName": "colors",
             "rules": [
                 {
                     "selector": ".bg-{{ KEY }}",
@@ -214,8 +214,8 @@
         {
             "id": "margin",
             "description": "Margin",
-            "method": "manyRulesFromVariableGroup",
-            "variableGroup": "spacing",
+            "method": "manyRulesFromInputGroup",
+            "inputGroupName": "spacing",
             "rules": [
                 {
                     "selector": ".m-{{ KEY }}",
@@ -266,8 +266,8 @@
         {
             "id": "padding",
             "description": "Padding",
-            "method": "manyRulesFromVariableGroup",
-            "variableGroup": "spacing",
+            "method": "manyRulesFromInputGroup",
+            "inputGroupName": "spacing",
             "rules": [
                 {
                     "selector": ".p-{{ KEY }}",

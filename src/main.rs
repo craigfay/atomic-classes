@@ -10,8 +10,8 @@ use std::fs;
 #[serde(rename_all = "camelCase")]
 #[serde(tag = "method")]
 pub enum Instruction {
-    SingleRuleFromVariableGroup(FromVariableGroup),
-    ManyRulesFromVariableGroup(ManyRulesFromVariableGroup),
+    SingleRuleFromInputGroup(FromInputGroup),
+    ManyRulesFromInputGroup(ManyRulesFromInputGroup),
     CopyExistingRules(CopyExistingRules),
 }
 
@@ -29,30 +29,30 @@ pub struct CopyExistingRules{
 
 #[derive(Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
-pub struct FromVariableGroup {
+pub struct FromInputGroup {
     id: String,
     description: String,
-    variable_group: String,
+    input_group_name: String,
     selector: String,
     declarations: BTreeMap<String, String>
 }
 
 #[derive(Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
-pub struct ManyRulesFromVariableGroup {
+pub struct ManyRulesFromInputGroup {
     id: String,
     description: String,
-    variable_group: String,
+    input_group_name: String,
     rules: Vec<CSSRule>,
 }
 
 
-pub type VariableGroup = BTreeMap<String, String>;
+pub type InputGroup = BTreeMap<String, String>;
 
 #[derive(Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 struct Config {
-    variable_groups: BTreeMap<String, VariableGroup>,
+    input_groups: BTreeMap<String, InputGroup>,
     instructions: Vec<Instruction>,
 }
 
@@ -62,10 +62,10 @@ struct CSSRule {
     declarations: BTreeMap<String, String>,
 }
 
-fn err_msg_for_missing_map(variable_group_name: &str) -> String {
+fn err_msg_for_missing_map(input_group_name: &str) -> String {
     format!(
-        "There is no variable map named \"{}\"",
-        variable_group_name,
+        "There is no input group named \"{}\"",
+        input_group_name,
     )
 }
 
@@ -77,20 +77,20 @@ fn err_msg_for_missing_instruction(description: &str, id: &str) -> String {
     )
 }
 
-/// Derive a single `CSSRule` using `FromVariableGroup`
-fn many_rules_from_variable_group(
+/// Derive a single `CSSRule` using `FromInputGroup`
+fn many_rules_from_input_group_name(
     config: &Config,
-    inst: &ManyRulesFromVariableGroup,
+    inst: &ManyRulesFromInputGroup,
     intermediate: &mut Intermediate,
 ) {
-    let variable_group = config.variable_groups
-        .get(&inst.variable_group)
-        .expect(&err_msg_for_missing_map(&inst.variable_group));
+    let input_group_name = config.input_groups
+        .get(&inst.input_group_name)
+        .expect(&err_msg_for_missing_map(&inst.input_group_name));
 
     let mut rules = vec![];
 
     for rule in &inst.rules {
-        for (var_key, var_val) in variable_group {
+        for (var_key, var_val) in input_group_name {
             let inject_variables = |s: &String| s
                 .replace("{{ KEY }}", var_key)
                 .replace("{{ VAL }}", var_val);
@@ -113,20 +113,20 @@ fn many_rules_from_variable_group(
     });
 }
 
-/// Derive a single `CSSRule` using `FromVariableGroup`
-fn single_rule_from_variable_group(
+/// Derive a single `CSSRule` using `FromInputGroup`
+fn single_rule_from_input_group_name(
     config: &Config,
-    inst: &FromVariableGroup,
+    inst: &FromInputGroup,
     intermediate: &mut Intermediate
 ) {
-    let variable_group = config.variable_groups
-        .get(&inst.variable_group)
-        .expect(&err_msg_for_missing_map(&inst.variable_group));
+    let input_group = config.input_groups
+        .get(&inst.input_group_name)
+        .expect(&err_msg_for_missing_map(&inst.input_group_name));
 
     let selector = inst.selector.clone();
     let mut declarations = BTreeMap::new();
 
-    for (var_key, var_val) in variable_group {
+    for (var_key, var_val) in input_group {
         let inject_variables = |s: &String| s
             .replace("{{ KEY }}", var_key)
             .replace("{{ VAL }}", var_val);
@@ -215,11 +215,11 @@ fn generate_rules(config: Config) -> Intermediate {
 
     for instruction in &config.instructions {
         match instruction {
-            Instruction::SingleRuleFromVariableGroup(inst) => {
-                single_rule_from_variable_group(&config, &inst, &mut intermediate);
+            Instruction::SingleRuleFromInputGroup(inst) => {
+                single_rule_from_input_group_name(&config, &inst, &mut intermediate);
             }
-            Instruction::ManyRulesFromVariableGroup(inst) => {
-                many_rules_from_variable_group(&config, &inst, &mut intermediate);
+            Instruction::ManyRulesFromInputGroup(inst) => {
+                many_rules_from_input_group_name(&config, &inst, &mut intermediate);
             }
             Instruction::CopyExistingRules(inst) => {
                 copy_existing_rules(inst, &mut intermediate);
