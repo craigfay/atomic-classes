@@ -318,9 +318,8 @@
         {
             "id": "hover",
             "description": "Hover",
-            "method": "addClassModifier",
-            "classPrefix": "hover\\:",
-            "representsPseudoClass": "hover",
+            "method": "copyExistingRules",
+            "newSelector": ".hover\\:{{ PREV_SELECTOR_CLASS_NAME }}:hover",
             "affectedIds": [
                 "margin", 
                 "padding",
@@ -331,9 +330,9 @@
         {
             "id": "medium-screen-size",
             "description": "Medium Screen Size",
-            "method": "copyExistingRulesIntoAtRule",
-            "identifier": "@media (min-width: 768px)",
-            "selectorsBecome": ".md\\:{{ PREV_CLASS_NAME }}",
+            "method": "copyExistingRules",
+            "@identifier": "@media (min-width: 768px)",
+            "newSelector": ".md\\:{{ PREV_SELECTOR_CLASS_NAME }}",
             "affectedIds": [
                 "margin", 
                 "padding",

@@ -12,29 +12,20 @@ use std::fs;
 pub enum Instruction {
     SingleRuleFromVariableGroup(FromVariableGroup),
     ManyRulesFromVariableGroup(ManyRulesFromVariableGroup),
-    AddClassModifier(AddClassModifier),
-    CopyExistingRulesIntoAtRule(CopyExistingRulesIntoAtRule),
+    CopyExistingRules(CopyExistingRules),
 }
 
 #[derive(Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
-pub struct CopyExistingRulesIntoAtRule {
+pub struct CopyExistingRules{
     id: String,
     description: String,
     affected_ids: Vec<String>,
-    identifier: String,
-    selectors_become: String,
+    #[serde(rename = "@identifier")]
+    at_rule_identifier: Option<String>,
+    new_selector: String,
 }
 
-#[derive(Deserialize, Debug)]
-#[serde(rename_all = "camelCase")]
-pub struct AddClassModifier {
-    id: String,
-    description: String,
-    affected_ids: Vec<String>,
-    class_prefix: String,
-    represents_pseudo_class: String,
-}
 
 #[derive(Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
@@ -154,41 +145,9 @@ fn single_rule_from_variable_group(
     });
 }
 
-/// Derive a new `CSSRule` for each existing one that was created
-/// by an instruction with an ID in `affected_ids`
-fn add_class_modifier(
-    inst: &AddClassModifier,
-    intermediate: &mut Intermediate,
-) {
-    let mut new_rules: Vec<CSSRule> = vec![];
-
-    for id in &inst.affected_ids {
-        let rule_family = intermediate.normal_rules.get(&id.clone())
-            .expect(&err_msg_for_missing_instruction(&inst.description, &id));
-
-        for rule in rule_family.css_rules.iter() {
-
-            // Skipping rules that don't target classes
-            if !rule.selector.starts_with(".") { continue }
-
-            let with_prefix = rule.selector.replacen(".", &inst.class_prefix, 1);
-            let selector = format!(".{}:{}", with_prefix, inst.represents_pseudo_class);
-
-            new_rules.push(CSSRule {
-                selector,
-                ..rule.clone()
-            });
-        }
-    }
-    intermediate.normal_rules.insert(inst.id.clone(), RuleFamily {
-        description: inst.description.clone(),
-        css_rules: new_rules,
-    });
-}
-
 /// Copy existing rules into a media query block
-fn copy_existing_rules_into_media_rule(
-    inst: &CopyExistingRulesIntoAtRule,
+fn copy_existing_rules(
+    inst: &CopyExistingRules,
     intermediate: &mut Intermediate,
 ) {
     let mut new_rules: Vec<CSSRule> = vec![];
@@ -198,10 +157,10 @@ fn copy_existing_rules_into_media_rule(
             .expect(&err_msg_for_missing_instruction(&inst.description, &id));
 
         for rule in rule_family.css_rules.iter() {
-            let mut selector = inst.selectors_become.clone();
+            let mut selector = inst.new_selector.clone();
 
             let prev_class_name = rule.selector.replacen(".", "", 1);
-            selector = selector.replace("{{ PREV_CLASS_NAME }}", &prev_class_name);
+            selector = selector.replace("{{ PREV_SELECTOR_CLASS_NAME }}", &prev_class_name);
             selector = selector.replace("{{ PREV_SELECTOR }}", &rule.selector);
 
             new_rules.push(CSSRule {
@@ -211,11 +170,23 @@ fn copy_existing_rules_into_media_rule(
         }
     }
 
-    intermediate.at_rules.insert(inst.id.clone(), AtRule {
-        identifier: inst.identifier.clone(),
-        description: inst.description.clone(),
-        css_rules: new_rules,
-    });
+    match &inst.at_rule_identifier {
+        Some(identifier) => {
+            intermediate.at_rules.insert(inst.id.clone(), AtRule {
+                identifier: identifier.clone(),
+                description: inst.description.clone(),
+                css_rules: new_rules,
+            });
+        },
+        None => {
+            intermediate.normal_rules.insert(inst.id.clone(), RuleFamily {
+                description: inst.description.clone(),
+                css_rules: new_rules,
+            });
+        }
+    }
+
+
 }
 
 type InstructionID = String;
@@ -250,11 +221,8 @@ fn generate_rules(config: Config) -> Intermediate {
             Instruction::ManyRulesFromVariableGroup(inst) => {
                 many_rules_from_variable_group(&config, &inst, &mut intermediate);
             }
-            Instruction::AddClassModifier(inst) => {
-                add_class_modifier(&inst, &mut intermediate);
-            },
-            Instruction::CopyExistingRulesIntoAtRule(inst) => {
-                copy_existing_rules_into_media_rule(inst, &mut intermediate);
+            Instruction::CopyExistingRules(inst) => {
+                copy_existing_rules(inst, &mut intermediate);
             }
         }
     }
