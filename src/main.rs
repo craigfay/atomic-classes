@@ -283,7 +283,7 @@ fn main() {
     let config: Config = serde_json::from_reader(reader).unwrap();
     let intermediate = generate_rules(config);
     let css = stringify_intermediate(&intermediate);
-    let intermediate = serde_json::to_string(&intermediate).unwrap();
+    let intermediate = serde_json::to_string_pretty(&intermediate).unwrap();
     fs::write("./build.css", css).expect("Unable to write file");
     fs::write("./intermediate.json", intermediate).expect("Unable to write file");
 }
