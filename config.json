@@ -162,7 +162,7 @@
             "orange9": "#d9480f"
         }
     },
-    "instructions": [
+    "transformations": [
         {
             "id": "define-color-variables",
             "description": "Define Color Variables",

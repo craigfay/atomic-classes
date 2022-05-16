@@ -9,7 +9,7 @@ use std::fs;
 #[derive(Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 #[serde(tag = "method")]
-pub enum Instruction {
+pub enum Transformation {
     SingleRuleFromInputGroup(FromInputGroup),
     ManyRulesFromInputGroup(ManyRulesFromInputGroup),
     CopyExistingRules(CopyExistingRules),
@@ -53,7 +53,7 @@ pub type InputGroup = BTreeMap<String, String>;
 #[serde(rename_all = "camelCase")]
 struct Config {
     input_groups: BTreeMap<String, InputGroup>,
-    instructions: Vec<Instruction>,
+    transformations: Vec<Transformation>,
 }
 
 #[derive(Deserialize, Serialize, Debug, Default, Clone)]
@@ -69,9 +69,9 @@ fn err_msg_for_missing_map(input_group_name: &str) -> String {
     )
 }
 
-fn err_msg_for_missing_instruction(description: &str, id: &str) -> String {
+fn err_msg_for_missing_transformation(description: &str, id: &str) -> String {
     format!(
-        "{}: There is no instruction named {}",
+        "{}: There is no transformation named {}",
         description,
         id
     )
@@ -80,16 +80,16 @@ fn err_msg_for_missing_instruction(description: &str, id: &str) -> String {
 /// Derive a single `CSSRule` using `FromInputGroup`
 fn many_rules_from_input_group_name(
     config: &Config,
-    inst: &ManyRulesFromInputGroup,
+    transformation: &ManyRulesFromInputGroup,
     intermediate: &mut Intermediate,
 ) {
     let input_group_name = config.input_groups
-        .get(&inst.input_group_name)
-        .expect(&err_msg_for_missing_map(&inst.input_group_name));
+        .get(&transformation.input_group_name)
+        .expect(&err_msg_for_missing_map(&transformation.input_group_name));
 
     let mut rules = vec![];
 
-    for rule in &inst.rules {
+    for rule in &transformation.rules {
         for (var_key, var_val) in input_group_name {
             let inject_variables = |s: &String| s
                 .replace("{{ KEY }}", var_key)
@@ -107,8 +107,8 @@ fn many_rules_from_input_group_name(
         }
     }
 
-    intermediate.normal_rules.insert(inst.id.clone(), RuleFamily {
-        description: inst.description.clone(),
+    intermediate.normal_rules.insert(transformation.id.clone(), RuleFamily {
+        description: transformation.description.clone(),
         css_rules: rules,
     });
 }
@@ -116,14 +116,14 @@ fn many_rules_from_input_group_name(
 /// Derive a single `CSSRule` using `FromInputGroup`
 fn single_rule_from_input_group_name(
     config: &Config,
-    inst: &FromInputGroup,
+    transformation: &FromInputGroup,
     intermediate: &mut Intermediate
 ) {
     let input_group = config.input_groups
-        .get(&inst.input_group_name)
-        .expect(&err_msg_for_missing_map(&inst.input_group_name));
+        .get(&transformation.input_group_name)
+        .expect(&err_msg_for_missing_map(&transformation.input_group_name));
 
-    let selector = inst.selector.clone();
+    let selector = transformation.selector.clone();
     let mut declarations = BTreeMap::new();
 
     for (var_key, var_val) in input_group {
@@ -131,7 +131,7 @@ fn single_rule_from_input_group_name(
             .replace("{{ KEY }}", var_key)
             .replace("{{ VAL }}", var_val);
 
-        for (property, value) in &inst.declarations {
+        for (property, value) in &transformation.declarations {
             declarations.insert(
                 inject_variables(&property),
                 inject_variables(&value),
@@ -139,25 +139,25 @@ fn single_rule_from_input_group_name(
         }
     }
 
-    intermediate.normal_rules.insert(inst.id.clone(), RuleFamily {
-        description: inst.description.clone(),
+    intermediate.normal_rules.insert(transformation.id.clone(), RuleFamily {
+        description: transformation.description.clone(),
         css_rules: vec![CSSRule { selector, declarations }]
     });
 }
 
 /// Copy existing rules into a media query block
 fn copy_existing_rules(
-    inst: &CopyExistingRules,
+    transformation: &CopyExistingRules,
     intermediate: &mut Intermediate,
 ) {
     let mut new_rules: Vec<CSSRule> = vec![];
 
-    for id in &inst.affected_ids {
+    for id in &transformation.affected_ids {
         let rule_family = intermediate.normal_rules.get(&id.clone())
-            .expect(&err_msg_for_missing_instruction(&inst.description, &id));
+            .expect(&err_msg_for_missing_transformation(&transformation.description, &id));
 
         for rule in rule_family.css_rules.iter() {
-            let mut selector = inst.new_selector.clone();
+            let mut selector = transformation.new_selector.clone();
 
             let prev_class_name = rule.selector.replacen(".", "", 1);
             selector = selector.replace("{{ PREV_SELECTOR_CLASS_NAME }}", &prev_class_name);
@@ -170,17 +170,17 @@ fn copy_existing_rules(
         }
     }
 
-    match &inst.at_rule_identifier {
+    match &transformation.at_rule_identifier {
         Some(identifier) => {
-            intermediate.at_rules.insert(inst.id.clone(), AtRule {
+            intermediate.at_rules.insert(transformation.id.clone(), AtRule {
                 identifier: identifier.clone(),
-                description: inst.description.clone(),
+                description: transformation.description.clone(),
                 css_rules: new_rules,
             });
         },
         None => {
-            intermediate.normal_rules.insert(inst.id.clone(), RuleFamily {
-                description: inst.description.clone(),
+            intermediate.normal_rules.insert(transformation.id.clone(), RuleFamily {
+                description: transformation.description.clone(),
                 css_rules: new_rules,
             });
         }
@@ -189,12 +189,12 @@ fn copy_existing_rules(
 
 }
 
-type InstructionID = String;
+type TransformationID = String;
 
 #[derive(Default, Serialize)]
 struct Intermediate {
-    normal_rules: BTreeMap<InstructionID, RuleFamily>,
-    at_rules: BTreeMap<InstructionID, AtRule>,
+    normal_rules: BTreeMap<TransformationID, RuleFamily>,
+    at_rules: BTreeMap<TransformationID, AtRule>,
 }
 
 #[derive(Default, Serialize)]
@@ -213,16 +213,16 @@ struct AtRule {
 fn generate_rules(config: Config) -> Intermediate {
     let mut intermediate = Intermediate::default();
 
-    for instruction in &config.instructions {
-        match instruction {
-            Instruction::SingleRuleFromInputGroup(inst) => {
-                single_rule_from_input_group_name(&config, &inst, &mut intermediate);
+    for transformation in &config.transformations {
+        match transformation {
+            Transformation::SingleRuleFromInputGroup(transformation) => {
+                single_rule_from_input_group_name(&config, &transformation, &mut intermediate);
             }
-            Instruction::ManyRulesFromInputGroup(inst) => {
-                many_rules_from_input_group_name(&config, &inst, &mut intermediate);
+            Transformation::ManyRulesFromInputGroup(transformation) => {
+                many_rules_from_input_group_name(&config, &transformation, &mut intermediate);
             }
-            Instruction::CopyExistingRules(inst) => {
-                copy_existing_rules(inst, &mut intermediate);
+            Transformation::CopyExistingRules(transformation) => {
+                copy_existing_rules(transformation, &mut intermediate);
             }
         }
     }
