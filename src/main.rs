@@ -10,8 +10,8 @@ use std::fs;
 #[serde(rename_all = "camelCase")]
 #[serde(tag = "method")]
 pub enum Transformation {
-    SingleRuleFromInputGroup(FromInputGroup),
-    ManyRulesFromInputGroup(ManyRulesFromInputGroup),
+    SingleRuleFromTokenGroup(FromTokenGroup),
+    ManyRulesFromTokenGroup(ManyRulesFromTokenGroup),
     CopyExistingRules(CopyExistingRules),
 }
 
@@ -29,32 +29,27 @@ pub struct CopyExistingRules{
 
 #[derive(Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
-pub struct FromInputGroup {
+pub struct FromTokenGroup {
     id: String,
     description: String,
-    input_group_name: String,
+    token_group_name: String,
     selector: String,
     declarations: BTreeMap<String, String>
 }
 
 #[derive(Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
-pub struct ManyRulesFromInputGroup {
+pub struct ManyRulesFromTokenGroup {
     id: String,
     description: String,
-    input_group_name: String,
+    token_group_name: String,
     rules: Vec<CSSRule>,
 }
 
+pub type TokenGroup = BTreeMap<String, String>;
+pub type TokenGroups = BTreeMap<String, TokenGroup>;
+pub type Transformations = Vec<Transformation>;
 
-pub type InputGroup = BTreeMap<String, String>;
-
-#[derive(Deserialize, Debug)]
-#[serde(rename_all = "camelCase")]
-struct Config {
-    input_groups: BTreeMap<String, InputGroup>,
-    transformations: Vec<Transformation>,
-}
 
 #[derive(Deserialize, Serialize, Debug, Default, Clone)]
 struct CSSRule {
@@ -62,10 +57,10 @@ struct CSSRule {
     declarations: BTreeMap<String, String>,
 }
 
-fn err_msg_for_missing_map(input_group_name: &str) -> String {
+fn err_msg_for_missing_map(token_group_name: &str) -> String {
     format!(
         "There is no input group named \"{}\"",
-        input_group_name,
+        token_group_name,
     )
 }
 
@@ -77,20 +72,20 @@ fn err_msg_for_missing_transformation(description: &str, id: &str) -> String {
     )
 }
 
-/// Derive a single `CSSRule` using `FromInputGroup`
-fn many_rules_from_input_group_name(
-    config: &Config,
-    transformation: &ManyRulesFromInputGroup,
+/// Derive a single `CSSRule` using `FromTokenGroup`
+fn many_rules_from_token_group_name(
+    token_groups: &TokenGroups,
+    transformation: &ManyRulesFromTokenGroup,
     intermediate: &mut Intermediate,
 ) {
-    let input_group_name = config.input_groups
-        .get(&transformation.input_group_name)
-        .expect(&err_msg_for_missing_map(&transformation.input_group_name));
+    let token_group_name = token_groups
+        .get(&transformation.token_group_name)
+        .expect(&err_msg_for_missing_map(&transformation.token_group_name));
 
     let mut rules = vec![];
 
     for rule in &transformation.rules {
-        for (var_key, var_val) in input_group_name {
+        for (var_key, var_val) in token_group_name {
             let inject_variables = |s: &String| s
                 .replace("{{ KEY }}", var_key)
                 .replace("{{ VAL }}", var_val);
@@ -113,20 +108,20 @@ fn many_rules_from_input_group_name(
     });
 }
 
-/// Derive a single `CSSRule` using `FromInputGroup`
-fn single_rule_from_input_group_name(
-    config: &Config,
-    transformation: &FromInputGroup,
+/// Derive a single `CSSRule` using `FromTokenGroup`
+fn single_rule_from_token_group_name(
+    token_groups: &TokenGroups,
+    transformation: &FromTokenGroup,
     intermediate: &mut Intermediate
 ) {
-    let input_group = config.input_groups
-        .get(&transformation.input_group_name)
-        .expect(&err_msg_for_missing_map(&transformation.input_group_name));
+    let token_group = token_groups
+        .get(&transformation.token_group_name)
+        .expect(&err_msg_for_missing_map(&transformation.token_group_name));
 
     let selector = transformation.selector.clone();
     let mut declarations = BTreeMap::new();
 
-    for (var_key, var_val) in input_group {
+    for (var_key, var_val) in token_group {
         let inject_variables = |s: &String| s
             .replace("{{ KEY }}", var_key)
             .replace("{{ VAL }}", var_val);
@@ -210,16 +205,19 @@ struct AtRule {
     css_rules: Vec<CSSRule>,
 }
 
-fn generate_rules(config: Config) -> Intermediate {
+fn apply_transformations(
+    token_groups: TokenGroups,
+    transformations: Transformations,
+) -> Intermediate {
     let mut intermediate = Intermediate::default();
 
-    for transformation in &config.transformations {
+    for transformation in &transformations {
         match transformation {
-            Transformation::SingleRuleFromInputGroup(transformation) => {
-                single_rule_from_input_group_name(&config, &transformation, &mut intermediate);
+            Transformation::SingleRuleFromTokenGroup(transformation) => {
+                single_rule_from_token_group_name(&token_groups, &transformation, &mut intermediate);
             }
-            Transformation::ManyRulesFromInputGroup(transformation) => {
-                many_rules_from_input_group_name(&config, &transformation, &mut intermediate);
+            Transformation::ManyRulesFromTokenGroup(transformation) => {
+                many_rules_from_token_group_name(&token_groups, &transformation, &mut intermediate);
             }
             Transformation::CopyExistingRules(transformation) => {
                 copy_existing_rules(transformation, &mut intermediate);
@@ -263,14 +261,23 @@ fn stringify_rules(rules: &Vec<CSSRule>) -> String {
     css
 }
 
-fn main() {
-    let path = std::env::args().nth(1)
-        .unwrap_or("config.json".to_string());
 
-    let file = File::open(path).unwrap();
-    let reader = BufReader::new(file);
-    let config: Config = serde_json::from_reader(reader).unwrap();
-    let intermediate = generate_rules(config);
+fn main() {
+    let path_to_tokens = std::env::args().nth(1)
+        .unwrap_or("atomic-styles.design-tokens.json".to_string());
+    let tokens_file = File::open(path_to_tokens).unwrap();
+    let reader = BufReader::new(tokens_file);
+    let inputs: TokenGroups = serde_json::from_reader(reader).unwrap();
+
+
+    let path_to_transformations = std::env::args().nth(2)
+        .unwrap_or("atomic-styles.transformations.json".to_string());
+    let inputs_file = File::open(path_to_transformations).unwrap();
+    let reader = BufReader::new(inputs_file);
+    let transformations: Transformations = serde_json::from_reader(reader).unwrap();
+
+
+    let intermediate = apply_transformations(inputs, transformations);
     let css = stringify_intermediate(&intermediate);
     let intermediate = serde_json::to_string_pretty(&intermediate).unwrap();
     fs::write("./build.css", css).expect("Unable to write file");
