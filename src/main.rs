@@ -87,7 +87,11 @@ fn err_msg_for_missing_instruction(description: &str, id: &str) -> String {
 }
 
 /// Derive a single `CSSRule` using `FromVariableGroup`
-fn many_rules_from_variable_group(config: &Config, inst: &ManyRulesFromVariableGroup) -> Vec<CSSRule> {
+fn many_rules_from_variable_group(
+    config: &Config,
+    inst: &ManyRulesFromVariableGroup,
+    intermediate: &mut Intermediate,
+) {
     let variable_group = config.variable_groups
         .get(&inst.variable_group)
         .expect(&err_msg_for_missing_map(&inst.variable_group));
@@ -110,14 +114,20 @@ fn many_rules_from_variable_group(config: &Config, inst: &ManyRulesFromVariableG
                 }).collect()
             })
         }
-
     }
 
-    rules
+    intermediate.normal_rules.insert(inst.id.clone(), RuleFamily {
+        description: inst.description.clone(),
+        css_rules: rules,
+    });
 }
 
 /// Derive a single `CSSRule` using `FromVariableGroup`
-fn single_rule_from_variable_group(config: &Config, inst: &FromVariableGroup) -> Vec<CSSRule> {
+fn single_rule_from_variable_group(
+    config: &Config,
+    inst: &FromVariableGroup,
+    intermediate: &mut Intermediate
+) {
     let variable_group = config.variable_groups
         .get(&inst.variable_group)
         .expect(&err_msg_for_missing_map(&inst.variable_group));
@@ -138,24 +148,25 @@ fn single_rule_from_variable_group(config: &Config, inst: &FromVariableGroup) ->
         }
     }
 
-    vec![
-        CSSRule { selector, declarations }
-    ]
+    intermediate.normal_rules.insert(inst.id.clone(), RuleFamily {
+        description: inst.description.clone(),
+        css_rules: vec![CSSRule { selector, declarations }]
+    });
 }
 
 /// Derive a new `CSSRule` for each existing one that was created
 /// by an instruction with an ID in `affected_ids`
 fn add_class_modifier(
     inst: &AddClassModifier,
-    intermediate: &Intermediate,
-) -> Vec<CSSRule> {
+    intermediate: &mut Intermediate,
+) {
     let mut new_rules: Vec<CSSRule> = vec![];
 
     for id in &inst.affected_ids {
-        let rules = intermediate.normal_rules.get(&id.clone())
+        let rule_family = intermediate.normal_rules.get(&id.clone())
             .expect(&err_msg_for_missing_instruction(&inst.description, &id));
 
-        for rule in rules.iter() {
+        for rule in rule_family.css_rules.iter() {
 
             // Skipping rules that don't target classes
             if !rule.selector.starts_with(".") { continue }
@@ -169,8 +180,10 @@ fn add_class_modifier(
             });
         }
     }
-
-    new_rules
+    intermediate.normal_rules.insert(inst.id.clone(), RuleFamily {
+        description: inst.description.clone(),
+        css_rules: new_rules,
+    });
 }
 
 /// Copy existing rules into a media query block
@@ -181,10 +194,10 @@ fn copy_existing_rules_into_media_rule(
     let mut new_rules: Vec<CSSRule> = vec![];
 
     for id in &inst.affected_ids {
-        let rules = intermediate.normal_rules.get(&id.clone())
+        let rule_family = intermediate.normal_rules.get(&id.clone())
             .expect(&err_msg_for_missing_instruction(&inst.description, &id));
 
-        for rule in rules.iter() {
+        for rule in rule_family.css_rules.iter() {
             let mut selector = inst.selectors_become.clone();
 
             let prev_class_name = rule.selector.replacen(".", "", 1);
@@ -209,7 +222,7 @@ type InstructionID = String;
 
 #[derive(Default, Serialize)]
 struct Intermediate {
-    normal_rules: BTreeMap<InstructionID, Vec<CSSRule>>,
+    normal_rules: BTreeMap<InstructionID, RuleFamily>,
     at_rules: BTreeMap<InstructionID, AtRule>,
 }
 
@@ -232,13 +245,13 @@ fn generate_rules(config: Config) -> Intermediate {
     for instruction in &config.instructions {
         match instruction {
             Instruction::SingleRuleFromVariableGroup(inst) => {
-                intermediate.normal_rules.insert(inst.id.clone(), single_rule_from_variable_group(&config, &inst));
+                single_rule_from_variable_group(&config, &inst, &mut intermediate);
             }
             Instruction::ManyRulesFromVariableGroup(inst) => {
-                intermediate.normal_rules.insert(inst.id.clone(), many_rules_from_variable_group(&config, &inst));
+                many_rules_from_variable_group(&config, &inst, &mut intermediate);
             }
             Instruction::AddClassModifier(inst) => {
-                intermediate.normal_rules.insert(inst.id.clone(), add_class_modifier(&inst, &intermediate));
+                add_class_modifier(&inst, &mut intermediate);
             },
             Instruction::CopyExistingRulesIntoAtRule(inst) => {
                 copy_existing_rules_into_media_rule(inst, &mut intermediate);
@@ -252,8 +265,8 @@ fn generate_rules(config: Config) -> Intermediate {
 fn stringify_intermediate(intermediate: &Intermediate) -> String {
     let mut css = String::new();
 
-    for (_id, css_rules) in &intermediate.normal_rules {
-        let block = stringify_rules(css_rules);
+    for (_id, rule_family) in &intermediate.normal_rules {
+        let block = stringify_rules(&rule_family.css_rules);
         css = format!("{}{}", css, block);
     }
 
