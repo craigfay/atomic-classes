@@ -200,6 +200,7 @@ fn copy_existing_rules_into_media_rule(
 
     intermediate.at_rules.insert(inst.id.clone(), AtRule {
         identifier: inst.identifier.clone(),
+        description: inst.description.clone(),
         css_rules: new_rules,
     });
 }
@@ -213,8 +214,15 @@ struct Intermediate {
 }
 
 #[derive(Default, Serialize)]
+struct RuleFamily {
+    description: String,
+    css_rules: Vec<CSSRule>,
+}
+
+#[derive(Default, Serialize)]
 struct AtRule {
     identifier: String,
+    description: String,
     css_rules: Vec<CSSRule>,
 }
 
