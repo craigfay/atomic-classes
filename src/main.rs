@@ -251,8 +251,8 @@ fn stringify_intermediate(intermediate: &Intermediate) -> String {
 
     for (_id, at_rule) in &intermediate.at_rules {
         let mut block = stringify_rules(&at_rule.css_rules);
-        block = format!("{} {{\n{}\n}}", at_rule.identifier, block);
-        css = format!("{}\n{}", css, block);
+        block = format!("{} {{\n{}}}", at_rule.identifier, block);
+        css = format!("{}{}", css, block);
     }
 
     css   
