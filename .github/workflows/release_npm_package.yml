@@ -71,9 +71,7 @@ jobs:
         run: chmod +x dist/*
       - name: List Dir
         run: ls -R
-      - name: Setup Package Registry Credentials
-        run: echo "not necessary yet!"
       - name: Preview Publish
         run: npm pack
       - name: Publish Package
-        run: echo "not necessary yet!"
+        run: npm publish
