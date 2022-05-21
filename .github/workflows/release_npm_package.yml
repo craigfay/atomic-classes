@@ -17,9 +17,9 @@ jobs:
         with:
           toolchain: stable
       - name: Build
-        run: cd distill && cargo build --release
+        run: cargo build --release
       - name: Rename Binary
-        run: mv distill/target/release/distill distill-for-ubuntu
+        run: mv target/release/distill distill-for-ubuntu
       - name: Upload Artifact
         uses: actions/upload-artifact@v2
         with:
@@ -35,9 +35,9 @@ jobs:
         with:
           toolchain: stable 
       - name: Build
-        run: cd distill && cargo build --release
+        run: cargo build --release
       - name: Rename Binary
-        run: mv distill/target/release/distill distill-for-osx
+        run: mv target/release/distill distill-for-osx
       - name: Upload Artifact
         uses: actions/upload-artifact@v2
         with:
@@ -53,9 +53,9 @@ jobs:
         with:
           toolchain: stable
       - name: Build
-        run: cd distill && cargo build --release
+        run: cargo build --release
       - name: Rename Binary
-        run: mv distill/target/release/distill.exe distill-for-windows.exe
+        run: mv target/release/distill.exe distill-for-windows.exe
       - name: Upload Artifact
         uses: actions/upload-artifact@v2
         with:
