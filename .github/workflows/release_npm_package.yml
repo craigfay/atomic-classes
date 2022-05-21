@@ -18,13 +18,11 @@ jobs:
           toolchain: stable
       - name: Build
         run: cargo build --release
-      - name: Rename Binary
-        run: mv target/release/atomic-styles atomic-styles-for-ubuntu
       - name: Upload Artifact
         uses: actions/upload-artifact@v2
         with:
-          name: atomic-styles-for-ubuntu
-          path: dist/
+          name: ubuntu-binary
+          path: target/release/atomic-styles
 
   build_macos:
     runs-on: macos-10.15
@@ -36,13 +34,11 @@ jobs:
           toolchain: stable 
       - name: Build
         run: cargo build --release
-      - name: Rename Binary
-        run: mv target/release/atomic-styles atomic-styles-for-osx
       - name: Upload Artifact
         uses: actions/upload-artifact@v2
         with:
-          name: atomic-styles-for-osx
-          path: dist/
+          name: osx-binary
+          path: target/release/atomic-styles
 
   build_windows:
     runs-on: windows-2022
@@ -54,13 +50,11 @@ jobs:
           toolchain: stable
       - name: Build
         run: cargo build --release
-      - name: Rename Binary
-        run: mv target/release/atomic-styles.exe atomic-styles-for-windows.exe
       - name: Upload Artifact
         uses: actions/upload-artifact@v2
         with:
-          name: atomic-styles-for-windows.exe
-          path: dist/
+          name: windows-binary
+          path: target/release/atomic-styles.exe
 
   publish_npm_package:
     needs: [build_ubuntu, build_macos, build_windows]
@@ -72,15 +66,11 @@ jobs:
           node-version: '16'
       - uses: actions/download-artifact@v2
         with:
-          path: temp_dist 
-      - name: Flatten Binary Directory
-        run: |
-          mkdir dist
-          mv temp_dist/**/* dist || true
-          rmdir dist/**/* || true
-          rm -rf temp_dist
+          path: dist
       - name: Grant Permissions
         run: chmod +x dist/*
+      - name: List Dir
+        run: ls -R
       - name: Setup Package Registry Credentials
         run: echo "not necessary yet!"
       - name: Preview Publish
