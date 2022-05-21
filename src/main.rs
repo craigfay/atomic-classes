@@ -35,7 +35,7 @@ impl RCFile {
 
 fn main() {
     let path_to_config = std::env::args().nth(1)
-        .unwrap_or("./.moonshinerc".to_string());
+        .unwrap_or("./atomic-styles.config.json".to_string());
     
     let config = RCFile::load_from_json(&path_to_config);
 

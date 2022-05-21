@@ -1,0 +1,23 @@
+{
+  "name": "atomic-styles",
+  "version": "1.0.0",
+  "description": "",
+  "main": "invoke_build.js",
+  "bin": {
+    "build-atomic-styles": "./invoke_build.js"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/craigfay/atomic-styles.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/craigfay/atomic-styles/issues"
+  },
+  "homepage": "https://github.com/craigfay/atomic-styles#readme"
+}
