@@ -19,11 +19,11 @@ jobs:
       - name: Build
         run: cargo build --release
       - name: Rename Binary
-        run: mv target/release/distill distill-for-ubuntu
+        run: mv target/release/atomic-styles atomic-styles-for-ubuntu
       - name: Upload Artifact
         uses: actions/upload-artifact@v2
         with:
-          name: distill-for-ubuntu
+          name: atomic-styles-for-ubuntu
           path: dist/
 
   build_macos:
@@ -37,11 +37,11 @@ jobs:
       - name: Build
         run: cargo build --release
       - name: Rename Binary
-        run: mv target/release/distill distill-for-osx
+        run: mv target/release/atomic-styles atomic-styles-for-osx
       - name: Upload Artifact
         uses: actions/upload-artifact@v2
         with:
-          name: distill-for-osx
+          name: atomic-styles-for-osx
           path: dist/
 
   build_windows:
@@ -55,11 +55,11 @@ jobs:
       - name: Build
         run: cargo build --release
       - name: Rename Binary
-        run: mv target/release/distill.exe distill-for-windows.exe
+        run: mv target/release/atomic-styles.exe atomic-styles-for-windows.exe
       - name: Upload Artifact
         uses: actions/upload-artifact@v2
         with:
-          name: distill-for-windows.exe
+          name: atomic-styles-for-windows.exe
           path: dist/
 
   publish_npm_package:
