@@ -2,3 +2,5 @@
 build.css
 intermediate.json
 index.html
+dist
+*.tgz
