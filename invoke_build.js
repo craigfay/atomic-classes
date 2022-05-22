@@ -6,9 +6,9 @@ const os = require('os');
 const fs = require('fs');
 
 const binaryPaths = {
-    "Linux": path.join(__dirname, "dist/ubuntu/atomic-styles"),
-    "Windows_NT": path.join(__dirname, "dist/windows/atomic-styles.exe"),
-    "Darwin": path.join(__dirname, "dist/osx/atomic-styles"),
+  "Linux": path.join(__dirname, "dist/ubuntu/atomic-styles"),
+  "Windows_NT": path.join(__dirname, "dist/windows/atomic-styles.exe"),
+  "Darwin": path.join(__dirname, "dist/osx/atomic-styles"),
 };
 
 // Collecting command line arguments
