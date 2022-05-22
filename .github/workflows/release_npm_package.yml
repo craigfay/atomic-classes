@@ -65,6 +65,7 @@ jobs:
         with:
           node-version: '16'
           registry-url: 'https://npm.pkg.github.com'
+          scope: craigfay
       - uses: actions/download-artifact@v2
         with:
           path: dist
