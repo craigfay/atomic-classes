@@ -21,7 +21,7 @@ jobs:
       - name: Upload Artifact
         uses: actions/upload-artifact@v2
         with:
-          name: ubuntu-binary
+          name: ubuntu
           path: target/release/atomic-styles
 
   build_macos:
@@ -37,7 +37,7 @@ jobs:
       - name: Upload Artifact
         uses: actions/upload-artifact@v2
         with:
-          name: osx-binary
+          name: osx
           path: target/release/atomic-styles
 
   build_windows:
@@ -53,7 +53,7 @@ jobs:
       - name: Upload Artifact
         uses: actions/upload-artifact@v2
         with:
-          name: windows-binary
+          name: windows
           path: target/release/atomic-styles.exe
 
   publish_npm_package:
@@ -73,7 +73,7 @@ jobs:
           path: dist
 
       - name: Grant Permissions
-        run: chmod +x dist/*
+        run: chmod +x dist/**/*
 
       - name: List Dir
         run: ls -R
