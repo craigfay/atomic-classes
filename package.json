@@ -1,5 +1,5 @@
 {
-  "name": "atomic-styles",
+  "name": "@craigfay/atomic-styles",
   "version": "1.0.0",
   "description": "",
   "main": "invoke_build.js",
